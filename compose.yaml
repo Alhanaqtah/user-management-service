@@ -1,0 +1,87 @@
+services:
+  service:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: service
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      # HTTP SERVER
+      - SERVER_ADDRESS=localhost:8080
+      - SERVER_TIMEOUT=10s
+      - SERVER_IDLE_TIMEOUT=4s
+      - SERVER_SHUTDOWN_TIMEOUT=10s
+      
+      # CACHE
+      - CACHE_HOST=${CACHE_HOST}
+      - CACHE_PORT=${CACHE_PORT}
+      - CACHE_DB=${CACHE_DB}
+
+      #BROKER
+      - BROKER_URL=${BROKER_URL}
+      - QUEUE_NAME=${QUEUE_NAME}
+
+      # TOKENS
+      - JWT_TOKEN_SECRET=${JWT_TOKEN_SECRET}
+      - JWT_TOKEN_TTL=15m
+      - REFRESH_TOKEN_TTL=24h
+    depends_on:
+      - database
+      - cache
+      - broker
+    networks:
+      - social-services
+
+  database:
+    image: postgres:16-alpine
+    container_name: database
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${STORAGE_USER}
+      - POSTGRES_PASSWORD=${STORAGE_PASSWORD}
+      - POSTGRES_DATABASE=${STORAGE_DB}
+    networks:
+      - social-services
+
+  cache:
+    image: redis:7.2
+    container_name: cache
+    restart: always
+    volumes:
+        - redis_data:/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes 
+    networks:
+      - social-services
+
+  broker:
+    image: rabbitmq:3.13
+    hostname: broker
+    container_name: broker
+    restart: always
+    ports:
+      - "5672:5672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=${BROKER_USER}
+      - RABBITMQ_DEFAULT_PASS=${BROKER_PASSWORD}
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbit disk_free_limit 2147483648
+    networks:
+      - social-services
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  social-services:
+    name: social-services
+    driver: bridge
