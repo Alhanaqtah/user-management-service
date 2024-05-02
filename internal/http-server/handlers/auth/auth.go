@@ -5,11 +5,11 @@ import (
 	"log/slog"
 	"net/http"
 
-	"user-managment-service/internal/config"
-	"user-managment-service/internal/lib/logger/sl"
-	resp "user-managment-service/internal/lib/response"
-	"user-managment-service/internal/models"
-	service "user-managment-service/internal/service/auth"
+	"user-management-service/internal/config"
+	"user-management-service/internal/lib/logger/sl"
+	resp "user-management-service/internal/lib/response"
+	"user-management-service/internal/models"
+	service "user-management-service/internal/service/auth"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"

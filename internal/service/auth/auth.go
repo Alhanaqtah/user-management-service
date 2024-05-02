@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"user-managment-service/internal/config"
-	"user-managment-service/internal/lib/jwt"
-	"user-managment-service/internal/models"
-	"user-managment-service/internal/storage"
+	"user-management-service/internal/config"
+	"user-management-service/internal/lib/jwt"
+	"user-management-service/internal/models"
+	"user-management-service/internal/storage"
 
 	gojwt "github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"

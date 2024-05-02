@@ -1,4 +1,4 @@
-module user-managment-service
+module user-management-service
 
 go 1.21.6
 

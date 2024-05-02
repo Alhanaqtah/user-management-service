@@ -6,12 +6,12 @@ services:
     container_name: service
     restart: always
     ports:
-      - "8080:8080"
+      - "8080:${SERVER_PORT}"
     env_file:
       - .env
     environment:
       # HTTP SERVER
-      - SERVER_ADDRESS=localhost:8080
+      - SERVER_ADDRESS=service:8080
       - SERVER_TIMEOUT=10s
       - SERVER_IDLE_TIMEOUT=4s
       - SERVER_SHUTDOWN_TIMEOUT=10s
@@ -30,9 +30,9 @@ services:
       - JWT_TOKEN_TTL=15m
       - REFRESH_TOKEN_TTL=24h
     depends_on:
+      - broker
       - database
       - cache
-      - broker
     networks:
       - social-services
 
@@ -61,12 +61,12 @@ services:
       - social-services
 
   broker:
-    image: rabbitmq:3.13
+    image: rabbitmq:3.13-management
     hostname: broker
     container_name: broker
     restart: always
     ports:
-      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     environment:

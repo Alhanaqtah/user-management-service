@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"user-managment-service/internal/config"
+	"user-management-service/internal/config"
 
 	"github.com/redis/go-redis/v9"
 )

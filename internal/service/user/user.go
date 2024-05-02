@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"user-managment-service/internal/models"
-	"user-managment-service/internal/storage"
+	"user-management-service/internal/models"
+	"user-management-service/internal/storage"
 )
 
 var (

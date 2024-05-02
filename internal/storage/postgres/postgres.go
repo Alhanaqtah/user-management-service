@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"user-managment-service/internal/config"
-	"user-managment-service/internal/models"
-	"user-managment-service/internal/storage"
+	"user-management-service/internal/config"
+	"user-management-service/internal/models"
+	"user-management-service/internal/storage"
 
 	"github.com/jackc/pgx/v5"
 )

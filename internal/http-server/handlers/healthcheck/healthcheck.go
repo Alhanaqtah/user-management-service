@@ -3,7 +3,7 @@ package healthcheck
 import (
 	"net/http"
 
-	resp "user-managment-service/internal/lib/response"
+	resp "user-management-service/internal/lib/response"
 
 	"github.com/go-chi/render"
 )

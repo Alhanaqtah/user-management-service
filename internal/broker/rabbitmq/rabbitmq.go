@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"user-managment-service/internal/config"
+	"user-management-service/internal/config"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )

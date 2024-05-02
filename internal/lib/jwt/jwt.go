@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"user-managment-service/internal/config"
-	"user-managment-service/internal/models"
+	"user-management-service/internal/config"
+	"user-management-service/internal/models"
 
 	"github.com/golang-jwt/jwt/v5"
 )
