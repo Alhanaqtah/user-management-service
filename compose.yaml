@@ -49,6 +49,17 @@ services:
     networks:
       - social-services
 
+  migrate:
+    image: migrate/migrate
+    container_name: migrate
+    volumes:
+      - ./migrations:/migrations
+    command: ["-path", "/migrations", "-database",  "${STORAGE_URL}", "up"]
+    networks:
+      - social-services
+    links:
+      - database
+
   cache:
     image: redis:7.2
     container_name: cache

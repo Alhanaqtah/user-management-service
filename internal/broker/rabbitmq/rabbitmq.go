@@ -3,7 +3,6 @@ package rabbitmq
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"user-management-service/internal/config"
 
@@ -16,7 +15,6 @@ type Broker struct {
 }
 
 func New(cfg config.Broker) (*Broker, error) {
-	log.Println(cfg.URL)
 	conn, err := amqp.Dial(cfg.URL)
 	if err != nil {
 		return nil, err
