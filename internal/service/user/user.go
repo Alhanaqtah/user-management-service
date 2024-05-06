@@ -13,13 +13,14 @@ import (
 var (
 	ErrUserNotFound     = errors.New("user not found")
 	ErrNoFieldsToUpdate = errors.New("no fields to update")
+	NotEnoughRights     = errors.New("not enough rights")
 )
 
 type Storage interface {
 	UserByUUID(ctx context.Context, uuid string) (*models.User, error)
 	PatchUser(ctx context.Context, uuid string, user *models.User) (*models.User, error)
 	Delete(ctx context.Context, uuid string) error
-	GetByModerator(ctx context.Context, moderatorID, userID int64) (*models.User, error)
+	// Role(uuid string) (string, error)
 }
 
 type Service struct {
@@ -82,16 +83,25 @@ func (s *Service) Delete(uuid string) error {
 	return nil
 }
 
-func (s *Service) GetByModerator(moderatorToken, userToken string) (*models.User, error) {
-	const op = "service.user.Delete"
+// func (s *Service) GetByID(requestorRole, requestorUUID string, requestorUUID string) (*models.User, error) {
+// 	const op = "service.user.GetByID"
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
 
-	user, err := s.storage.GetByModerator(ctx, 0, 0)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
+// 	var user *models.User
 
-	return user, nil
-}
+// 	if requestorRole == "admin" {
+// 		user, err := s.storage.UserByUUID(ctx, uuid)
+// 		if err != nil {
+// 			if errors.Is(err, storage.ErrUserNotFound) {
+// 				return nil, fmt.Errorf("%s: %w", op, ErrUserNotFound)
+// 			}
+// 			return nil, fmt.Errorf("%s: %w", op, err)
+// 		}
+// 	} else if role == "moderator" {
+
+// 	}
+
+// 	return user, nil
+// }

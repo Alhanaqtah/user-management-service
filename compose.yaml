@@ -42,23 +42,14 @@ services:
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     environment:
       - POSTGRES_USER=${STORAGE_USER}
       - POSTGRES_PASSWORD=${STORAGE_PASSWORD}
       - POSTGRES_DATABASE=${STORAGE_DB}
     networks:
       - social-services
-
-  migrate:
-    image: migrate/migrate
-    container_name: migrate
-    volumes:
-      - ./migrations:/migrations
-    command: ["-path", "/migrations", "-database",  "${STORAGE_URL}", "up"]
-    networks:
-      - social-services
-    links:
-      - database
 
   cache:
     image: redis:7.2

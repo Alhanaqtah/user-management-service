@@ -3,12 +3,14 @@ package jwt
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
 	"user-management-service/internal/config"
 	"user-management-service/internal/models"
 
+	"github.com/go-chi/jwtauth"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -72,6 +74,22 @@ func GetClaim(claims map[string]interface{}, claim string) (string, error) {
 	}
 
 	return res, nil
+}
+
+func ExtractClaimsFromHeader(r *http.Request, secret string) (jwt.MapClaims, error) {
+	const op = "ExtractClaimsFromHeader"
+
+	tokenString := jwtauth.TokenFromHeader(r)
+	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, errors.New("failed to parse token"))
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+
+	return claims, nil
 }
 
 /* func CheckClaim(ctx context.Context, claim, expectedClaim string) (bool, error) {

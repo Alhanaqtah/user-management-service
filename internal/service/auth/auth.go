@@ -89,6 +89,9 @@ func (s *Service) Login(username, password string) (string, string, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	s.log.Debug("", slog.String("username", username))
+
+	// Search for username
 	user, err := s.storage.UserByName(ctx, username)
 	if err != nil {
 		if errors.As(err, &storage.ErrUserNotFound) {
@@ -97,6 +100,15 @@ func (s *Service) Login(username, password string) (string, string, error) {
 		return "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
+	s.log.Debug("user's info from db", slog.Any("user", user))
+
+	// If username found, compsre password hash
+	err = bcrypt.CompareHashAndPassword(user.PassHash, []byte(password))
+	if err != nil {
+		return "", "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Generate access & refresh tokens
 	accessToken, err := jwt.NewAccessToken(user, s.tokenCfg)
 	if err != nil {
 		return "", "", fmt.Errorf("%s: %w", op, err)

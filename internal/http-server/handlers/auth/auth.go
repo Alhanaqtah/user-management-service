@@ -86,11 +86,14 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	render.DecodeJSON(r.Body, &user)
 
+	// Validation
 	if user.Username == "" && user.Password == "" {
 		log.Debug("invalid credentials")
 		render.JSON(w, r, resp.Err("invalid credentials"))
+		return
 	}
 
+	// Login user
 	accessToken, refreshToken, err := h.service.Login(user.Username, user.Password)
 	if err != nil {
 		log.Error("failed to login user", sl.Error(err))
@@ -102,6 +105,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Write response
 	render.JSON(w, r, resp.Tokens{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,

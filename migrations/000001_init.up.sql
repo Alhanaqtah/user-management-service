@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone_number VARCHAR(255) DEFAULT '',
     email VARCHAR(255) NOT NULL,
     role ROLE DEFAULT 'user' CHECK (role IN ('user', 'moderator', 'admin')),
-    image_s3_path VARCHAR(255),
+    image_s3_path VARCHAR(255) DEFAULT '',
     is_blocked BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     modified_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP

@@ -13,17 +13,18 @@ import (
 	"user-management-service/internal/models"
 	"user-management-service/internal/storage"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Storage struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 func New(cfg config.Storage) (*Storage, error) {
 	const op = "storage.postgres.New"
 
-	db, err := sql.Open("postgres", fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s sslmode=%s",
+	db, err := pgxpool.New(context.Background(), fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s sslmode=%s",
 		cfg.User,
 		cfg.Password,
 		cfg.Host,
@@ -35,18 +36,64 @@ func New(cfg config.Storage) (*Storage, error) {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	err = db.Ping()
+	err = db.Ping(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
+	db.Exec(context.TODO(), `
+	CREATE TYPE ROLE AS ENUM ('user', 'moderator', 'admin');
+	
+	CREATE TABLE IF NOT EXISTS users (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		name VARCHAR(255) DEFAULT '',
+		surname VARCHAR(255) DEFAULT '',
+		username VARCHAR(255) NOT NULL,
+		pass_hash BYTEA NOT NULL,
+		phone_number VARCHAR(255) DEFAULT '',
+		email VARCHAR(255) NOT NULL,
+		role ROLE DEFAULT 'user' CHECK (role IN ('user', 'moderator', 'admin')),
+		image_s3_path VARCHAR(255) DEFAULT '',
+		is_blocked BOOLEAN DEFAULT false,
+		created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		modified_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS groups (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		name VARCHAR(255) NOT NULL,
+		created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS users_groups (
+		id BIGINT PRIMARY KEY,
+		user_id UUID NOT NULL,
+		group_id UUID NOT NULL,
+		FOREIGN KEY (user_id) REFERENCES users(id),
+		FOREIGN KEY (group_id) REFERENCES groups(id)
+	);
+
+	CREATE OR REPLACE FUNCTION update_modified_at()
+	RETURNS TRIGGER AS $$
+	BEGIN
+		NEW.modified_at = CURRENT_TIMESTAMP;
+		RETURN NEW;
+	END;
+	$$ LANGUAGE plpgsql;
+
+	CREATE TRIGGER update_users_modified_at
+	BEFORE UPDATE ON users
+	FOR EACH ROW
+	EXECUTE FUNCTION update_modified_at();
+	`)
+
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) UserByUUID(ctx context.Context, username string) (*models.User, error) {
+func (s *Storage) UserByUUID(ctx context.Context, uuid string) (*models.User, error) {
 	const op = "storage.postgres.UserByUUID"
 
-	row := s.db.QueryRowContext(ctx, `
+	row := s.db.QueryRow(ctx, `
 		SELECT
 			name,
 			surname,
@@ -57,7 +104,8 @@ func (s *Storage) UserByUUID(ctx context.Context, username string) (*models.User
 			is_blocked,
 			created_at,
 			modified_at
-		FROM users WHERE id=$1`, username,
+		FROM users
+		WHERE id=$1`, uuid,
 	)
 
 	var user models.User
@@ -85,34 +133,24 @@ func (s *Storage) UserByUUID(ctx context.Context, username string) (*models.User
 func (s *Storage) UserByName(ctx context.Context, username string) (*models.User, error) {
 	const op = "storage.postgres.UserByName"
 
-	row := s.db.QueryRowContext(ctx, `
+	row := s.db.QueryRow(ctx, `
 		SELECT
-			name,
-			surname,
+			id,
 			username,
-			phone_number,
-			email,
-			role,
-			is_blocked,
-			created_at,
-			modified_at
+			pass_hash,
+			role
 		FROM users WHERE username=$1`, username,
 	)
 
 	var user models.User
 	err := row.Scan(
-		&user.Name,
-		&user.Surname,
+		&user.UUID,
 		&user.Username,
-		&user.PhoneNumber,
-		&user.Email,
+		&user.PassHash,
 		&user.Role,
-		&user.IsBlocked,
-		&user.CreatedAt,
-		&user.ModifiedAt,
 	)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.As(err, &pgx.ErrNoRows) {
 			return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
 		}
 		return nil, fmt.Errorf("%s: %w", op, err)
@@ -125,7 +163,7 @@ func (s *Storage) SearchEmail(ctx context.Context, email string) (bool, error) {
 	const op = "storage.postgres.SearchEmail"
 
 	var found bool
-	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT username FROM users WHERE email=$1)`, email).Scan(&found)
+	err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT username FROM users WHERE email=$1)`, email).Scan(&found)
 	if err != nil {
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
@@ -136,7 +174,7 @@ func (s *Storage) SearchEmail(ctx context.Context, email string) (bool, error) {
 func (s *Storage) CreateNewUser(ctx context.Context, username string, email string, passHash []byte) error {
 	const op = "storage.postgres.CreateNewUser"
 
-	_, err := s.db.ExecContext(ctx, `INSERT INTO users (username, email, pass_hash) VALUES ($1, $2, $3)`, username, email, passHash)
+	_, err := s.db.Exec(ctx, `INSERT INTO users (username, email, pass_hash) VALUES ($1, $2, $3)`, username, email, passHash)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -180,7 +218,7 @@ func (s *Storage) PatchUser(ctx context.Context, uuid string, user *models.User)
 	query := "UPDATE users SET " + queryAttrs + ", modified_at=$" + strconv.Itoa(len(attrs)+1) + " WHERE id=$" + strconv.Itoa(len(attrs)+2) + " RETURNING name, surname, username, phone_number, email, role, is_blocked, created_at, modified_at"
 
 	var u models.User
-	err := s.db.QueryRowContext(ctx, query, args...).Scan(&u.Name, &u.Surname, &u.Username, &u.PhoneNumber, &u.Email, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.ModifiedAt)
+	err := s.db.QueryRow(ctx, query, args...).Scan(&u.Name, &u.Surname, &u.Username, &u.PhoneNumber, &u.Email, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.ModifiedAt)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -189,24 +227,12 @@ func (s *Storage) PatchUser(ctx context.Context, uuid string, user *models.User)
 }
 
 func (s *Storage) Delete(ctx context.Context, uuid string) error {
-	const op = "storage.postgres.CreateNewUser"
+	const op = "storage.postgres.Delete"
 
-	_, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id=$1`, uuid)
+	_, err := s.db.Exec(ctx, `DELETE FROM users WHERE id=$1`, uuid)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	return nil
-}
-
-func (s *Storage) GetByModerator(ctx context.Context, moderatorID, userID int64) (*models.User, error) {
-	const op = "storage.postgres.GetByModerator"
-
-	var user models.User
-	err := s.db.QueryRowContext(ctx, ``, moderatorID, userID).Scan(&user)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	return &user, nil
 }
