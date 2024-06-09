@@ -14,6 +14,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var (
+	ErrTokenExpired = errors.New("token is expired")
+)
+
 func NewAccessToken(user *models.User, cfg config.Token) (string, error) {
 	const op = "NewAccessToken"
 
@@ -84,6 +88,9 @@ func ExtractClaimsFromHeader(r *http.Request, secret string) (jwt.MapClaims, err
 		return []byte(secret), nil
 	})
 	if err != nil {
+		if errors.As(err, &jwtauth.ErrExpired) {
+			return nil, fmt.Errorf("%s: %w", op, ErrTokenExpired)
+		}
 		return nil, fmt.Errorf("%s: %w", op, errors.New("failed to parse token"))
 	}
 

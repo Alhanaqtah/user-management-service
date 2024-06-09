@@ -12,7 +12,7 @@ type User struct {
 	PhoneNumber string     `json:"phone_number,omitempty"`
 	Email       string     `json:"email,omitempty"`
 	Role        string     `json:"role,omitempty"`
-	GroupID     int64      `json:"group_id ,omitempty"`
+	Groups      []string   `json:"groups ,omitempty"`
 	ImageS3Path string     `json:"image_s3_path,omitempty"`
 	IsBlocked   bool       `json:"is_blocked,omitempty"`
 	CreatedAt   *time.Time `json:"created_at,omitempty"`

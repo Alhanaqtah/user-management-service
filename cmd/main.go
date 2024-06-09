@@ -71,9 +71,8 @@ func main() {
 	user := userhabdler.New(log, userService, cfg.Token)
 
 	r.HandleFunc("/healthcheck", healthcheck.Register())
-	// r.Route("/users", nil)
 	r.Route("/auth", auth.Register())
-	r.Route("/user", user.Register())
+	r.Route("/users", user.Register())
 
 	// Server
 	srv := http.Server{

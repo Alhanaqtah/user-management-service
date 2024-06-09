@@ -19,7 +19,6 @@ type Service interface {
 	UserByUUID(uuid string) (*models.User, error)
 	PatchUser(uuid string, user *models.User) (*models.User, error)
 	Delete(uuid string) error
-	// GetByID(role, uuid string) (*models.User, error)
 }
 
 type Handler struct {
@@ -41,8 +40,6 @@ func (h *Handler) Register() func(r chi.Router) {
 		r.Get("/me", h.get)
 		r.Patch("/me", h.patch)
 		r.Delete("/me", h.delete)
-		r.Get("/{userID}", h.getByID)
-		r.Patch("/{userID}", h.patchByID)
 	}
 }
 
@@ -54,8 +51,13 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 	// Retrive user id
 	claims, err := jwt.ExtractClaimsFromHeader(r, h.tokenCfg.JWT.Secret)
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			log.Error("token is expired", sl.Error(err))
+			render.JSON(w, r, resp.Err("token is expired"))
+			return
+		}
 		log.Error("failed to extract jwt claims from header", sl.Error(err))
-		render.JSON(w, r, "internal error")
+		render.JSON(w, r, resp.Err("internal error"))
 		return
 	}
 
@@ -152,42 +154,4 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	render.JSON(w, r, resp.Ok())
-}
-
-func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
-	// const op = "handlers.user.getByID"
-
-	// log := h.log.With(slog.String("op", op))
-
-	// userUUID := chi.URLParam(r, "userID")
-
-	// claims, err := jwt.ExtractClaimsFromHeader(r, h.tokenCfg.JWT.Secret)
-	// if err != nil {
-	// 	log.Error("failed to extract jwt claims from header", sl.Error(err))
-	// 	render.JSON(w, r, "internal error")
-	// 	return
-	// }
-
-	// role, err := jwt.GetClaim(claims, "role")
-
-	// user, err := h.service.GetByID(role, userUUID)
-	// if err != nil {
-	// 	log.Error("failed to get user", sl.Error(err))
-	// 	if errors.As(err, service.NotEnoughRights) {
-	// 		render.JSON(w, r, "user not found")
-	// 		return
-	// 	}
-	// 	if errors.As(err, service.ErrUserNotFound) {
-	// 		render.JSON(w, r, "user not found")
-	// 		return
-	// 	}
-	// 	render.JSON(w, r, "internal error")
-	// 	return
-	// }
-
-	// render.JSON(w, r, user)
-}
-
-func (h *Handler) patchByID(w http.ResponseWriter, r *http.Request) {
-
 }

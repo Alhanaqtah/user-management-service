@@ -66,7 +66,7 @@ func New(cfg config.Storage) (*Storage, error) {
 	);
 
 	CREATE TABLE IF NOT EXISTS users_groups (
-		id BIGINT PRIMARY KEY,
+		id BISERIAL PRIMARY KEY,
 		user_id UUID NOT NULL,
 		group_id UUID NOT NULL,
 		FOREIGN KEY (user_id) REFERENCES users(id),
@@ -93,23 +93,27 @@ func New(cfg config.Storage) (*Storage, error) {
 func (s *Storage) UserByUUID(ctx context.Context, uuid string) (*models.User, error) {
 	const op = "storage.postgres.UserByUUID"
 
-	row := s.db.QueryRow(ctx, `
-		SELECT
-			name,
-			surname,
-			username,
-			phone_number,
-			email,
-			role,
-			is_blocked,
-			created_at,
-			modified_at
-		FROM users
-		WHERE id=$1`, uuid,
+	var user models.User
+
+	// Fetch the user information
+	userRow := s.db.QueryRow(ctx, `
+        SELECT
+            u.name,
+            u.surname,
+            u.username,
+            u.phone_number,
+            u.email,
+            u.role,
+            u.is_blocked,
+            u.created_at,
+            u.modified_at
+        FROM
+            users u
+        WHERE
+            u.id = $1`, uuid,
 	)
 
-	var user models.User
-	err := row.Scan(
+	err := userRow.Scan(
 		&user.Name,
 		&user.Surname,
 		&user.Username,
@@ -121,11 +125,45 @@ func (s *Storage) UserByUUID(ctx context.Context, uuid string) (*models.User, er
 		&user.ModifiedAt,
 	)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
 		}
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
+
+	// Fetch the groups for the user
+	groupRows, err := s.db.Query(ctx, `
+        SELECT
+            g.name
+        FROM
+            groups g
+        JOIN
+            users_groups ug ON g.id = ug.group_id
+        WHERE
+            ug.user_id = $1`, uuid,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	defer groupRows.Close()
+
+	var groupNames []string
+	for groupRows.Next() {
+		var groupName string
+		if err := groupRows.Scan(&groupName); err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+		groupNames = append(groupNames, groupName)
+	}
+	if err := groupRows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	// Assign the groups to the user
+	user.Groups = groupNames
+
+	// Output fields name, surname, phone_number, role, groups
+	fmt.Printf("User: %v", user)
 
 	return &user, nil
 }

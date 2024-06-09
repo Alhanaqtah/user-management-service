@@ -13,16 +13,13 @@ import (
 var (
 	ErrUserNotFound     = errors.New("user not found")
 	ErrNoFieldsToUpdate = errors.New("no fields to update")
-	NotEnoughRights     = errors.New("not enough rights")
 )
 
 type Storage interface {
 	UserByUUID(ctx context.Context, uuid string) (*models.User, error)
 	PatchUser(ctx context.Context, uuid string, user *models.User) (*models.User, error)
 	Delete(ctx context.Context, uuid string) error
-	// Role(uuid string) (string, error)
 }
-
 type Service struct {
 	log     *slog.Logger
 	storage Storage
@@ -82,26 +79,3 @@ func (s *Service) Delete(uuid string) error {
 
 	return nil
 }
-
-// func (s *Service) GetByID(requestorRole, requestorUUID string, requestorUUID string) (*models.User, error) {
-// 	const op = "service.user.GetByID"
-
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
-
-// 	var user *models.User
-
-// 	if requestorRole == "admin" {
-// 		user, err := s.storage.UserByUUID(ctx, uuid)
-// 		if err != nil {
-// 			if errors.Is(err, storage.ErrUserNotFound) {
-// 				return nil, fmt.Errorf("%s: %w", op, ErrUserNotFound)
-// 			}
-// 			return nil, fmt.Errorf("%s: %w", op, err)
-// 		}
-// 	} else if role == "moderator" {
-
-// 	}
-
-// 	return user, nil
-// }
